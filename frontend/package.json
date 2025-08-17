@@ -1,0 +1,19 @@
+{
+  "name": "multiplayer-snake-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for multiplayer Snake game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "echo 'No build process needed for static files'"
+  },
+  "keywords": ["snake", "game", "multiplayer", "frontend"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
