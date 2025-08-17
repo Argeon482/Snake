@@ -8,7 +8,7 @@ const server = http.createServer(app);
 
 // Configure CORS for separate frontend
 const allowedOrigins = process.env.NODE_ENV === 'production' 
-    ? [process.env.FRONTEND_URL || 'https://your-frontend-app.onrender.com']
+    ? [process.env.FRONTEND_URL || 'https://multiplayer-snake-frontend.onrender.com']
     : ['http://localhost:3000', 'http://localhost:8080', 'http://127.0.0.1:3000', 'http://127.0.0.1:8080'];
 
 app.use(cors({

@@ -43,7 +43,7 @@ npm start
 The backend URL is automatically determined based on the environment:
 
 - **Development**: `http://localhost:3000`
-- **Production**: `https://your-backend-app.onrender.com`
+- **Production**: `https://multiplayer-snake-backend.onrender.com`
 
 To change the production backend URL, update the `backendUrl` variable in `game.js`.
 

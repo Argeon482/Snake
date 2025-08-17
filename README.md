@@ -85,7 +85,7 @@ This project is configured for automatic deployment of both frontend and backend
    After deployment, update the backend URL in `frontend/game.js`:
    ```javascript
    // Replace 'your-backend-app.onrender.com' with your actual backend URL
-   const backendUrl = 'https://your-actual-backend-app.onrender.com';
+   const backendUrl = 'https://multiplayer-snake-backend.onrender.com';
    ```
 
 5. **Deploy**:
@@ -96,8 +96,8 @@ This project is configured for automatic deployment of both frontend and backend
 ### Service URLs
 
 After deployment, you'll have:
-- **Frontend**: `https://your-frontend-app.onrender.com` (main game interface)
-- **Backend**: `https://your-backend-app.onrender.com` (API server)
+- **Frontend**: `https://multiplayer-snake-frontend.onrender.com` (main game interface)
+- **Backend**: `https://multiplayer-snake-backend.onrender.com` (API server)
 
 ### Environment Variables
 
