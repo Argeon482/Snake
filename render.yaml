@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: multiplayer-snake-game
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /health
+    numInstances: 1
+    plan: free
