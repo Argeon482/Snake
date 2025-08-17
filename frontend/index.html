@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐍 Multiplayer Snake Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Welcome Screen -->
+        <div id="welcomeScreen" class="screen active">
+            <div class="welcome-content">
+                <h1>🐍 Multiplayer Snake Game</h1>
+                <p>Challenge your friends in this classic arcade game!</p>
+                
+                <div class="input-group">
+                    <input type="text" id="playerName" placeholder="Enter your name" maxlength="15" required>
+                </div>
+                
+                <div class="input-group">
+                    <input type="text" id="roomId" placeholder="Room ID (optional - leave empty for random)">
+                </div>
+                
+                <button id="joinButton" class="btn btn-primary">Join Game</button>
+                
+                <div class="game-info">
+                    <h3>🎮 How to Play:</h3>
+                    <ul>
+                        <li>Use arrow keys or WASD to control your snake</li>
+                        <li>Eat food (yellow circles) to grow and score points</li>
+                        <li>Avoid walls and other snakes</li>
+                        <li>Last snake standing wins!</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Waiting Screen -->
+        <div id="waitingScreen" class="screen">
+            <div class="waiting-content">
+                <h2>🎯 Waiting for Players...</h2>
+                <div class="room-info">
+                    <p>Room ID: <span id="currentRoomId" class="room-id"></span></p>
+                    <p>Share this room ID with your friend!</p>
+                </div>
+                
+                <div class="players-list">
+                    <div class="player-status">
+                        <div id="player1Status" class="player-slot">
+                            <span class="player-indicator"></span>
+                            <span class="player-name">Waiting...</span>
+                        </div>
+                        <div id="player2Status" class="player-slot">
+                            <span class="player-indicator"></span>
+                            <span class="player-name">Waiting...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="loading-animation">
+                    <div class="snake-loader">
+                        <div class="snake-segment"></div>
+                        <div class="snake-segment"></div>
+                        <div class="snake-segment"></div>
+                    </div>
+                </div>
+                
+                <button id="leaveRoomButton" class="btn btn-secondary">Leave Room</button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="gameScreen" class="screen">
+            <div class="game-header">
+                <div class="scores">
+                    <div class="player-score" id="player1Score">
+                        <span class="player-color player1-color"></span>
+                        <span id="player1Name">Player 1</span>: <span id="player1Points">0</span>
+                    </div>
+                    <div class="player-score" id="player2Score">
+                        <span class="player-color player2-color"></span>
+                        <span id="player2Name">Player 2</span>: <span id="player2Points">0</span>
+                    </div>
+                </div>
+                <div class="room-id-display">
+                    Room: <span id="gameRoomId"></span>
+                </div>
+            </div>
+            
+            <div class="game-container">
+                <canvas id="gameCanvas" width="600" height="600"></canvas>
+            </div>
+            
+            <div class="game-controls">
+                <p>Use Arrow Keys or WASD to control your snake</p>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen" class="screen">
+            <div class="game-over-content">
+                <h2 id="gameOverTitle">🎉 Game Over!</h2>
+                <div id="gameOverStats" class="final-scores">
+                    <!-- Scores will be populated by JavaScript -->
+                </div>
+                
+                <div class="game-over-actions">
+                    <button id="playAgainButton" class="btn btn-primary">Play Again</button>
+                    <button id="newRoomButton" class="btn btn-secondary">New Room</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Messages -->
+        <div id="errorMessage" class="error-message">
+            <span id="errorText"></span>
+            <button id="closeError" class="close-btn">&times;</button>
+        </div>
+    </div>
+
+    <!-- Socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
