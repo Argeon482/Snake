@@ -26,7 +26,7 @@ A real-time multiplayer Snake game built with Node.js, Express, and Socket.io. C
 
 ### Prerequisites
 
-- Node.js (version 14 or higher)
+- Node.js (version 18 or higher)
 - npm
 
 ### Installation

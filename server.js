@@ -5,12 +5,33 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+
+// Configure socket.io for production
+const io = socketIo(server, {
+    cors: {
+        origin: process.env.NODE_ENV === 'production' 
+            ? false  // Same origin in production
+            : "http://localhost:3000",
+        methods: ["GET", "POST"]
+    },
+    transports: ['websocket', 'polling']  // Ensure both transports are available
+});
 
 const PORT = process.env.PORT || 3000;
+const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'healthy',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+        environment: NODE_ENV
+    });
+});
 
 // Game state
 const gameRooms = new Map();
@@ -238,5 +259,19 @@ setInterval(() => {
 }, 100);
 
 server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`🐍 Snake Game Server running on port ${PORT}`);
+    console.log(`📍 Environment: ${NODE_ENV}`);
+    console.log(`🎮 Game rooms: ${gameRooms.size}`);
+    if (NODE_ENV === 'production') {
+        console.log('🚀 Running in production mode');
+    }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully...');
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
 });
