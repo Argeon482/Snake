@@ -48,7 +48,7 @@ function init() {
     // Initialize socket connection to backend
     const backendUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
         ? 'http://localhost:3000'  // Development backend
-        : 'https://your-backend-app.onrender.com';  // Production backend
+        : 'https://multiplayer-snake-backend.onrender.com';  // Production backend
     
     socket = io(backendUrl, {
         transports: ['websocket', 'polling'],
