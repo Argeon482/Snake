@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Client</title>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <h1>Test Client</h1>
+    <input type="text" id="playerName" value="TestPlayer" />
+    <input type="text" id="roomId" value="" />
+    <button id="joinButton">Join Game</button>
+    <div id="log"></div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += '<p>' + new Date().toLocaleTimeString() + ': ' + message + '</p>';
+            console.log(message);
+        }
+
+        // Initialize socket
+        const socket = io();
+        
+        socket.on('connect', () => {
+            log('Connected to server with ID: ' + socket.id);
+        });
+        
+        socket.on('connect_error', (error) => {
+            log('Connection error: ' + error);
+        });
+        
+        socket.on('playerJoined', (data) => {
+            log('Player joined: ' + JSON.stringify(data));
+        });
+        
+        socket.on('roomFull', () => {
+            log('Room is full');
+        });
+        
+        socket.on('error', (message) => {
+            log('Error: ' + message);
+        });
+
+        // Join game function
+        function joinGame() {
+            log('joinGame function called');
+            
+            const playerName = document.getElementById('playerName').value.trim();
+            const roomId = document.getElementById('roomId').value.trim() || 'test-room-' + Math.random().toString(36).substr(2, 9);
+            
+            log('Player name: ' + playerName);
+            log('Room ID: ' + roomId);
+            log('Socket connected: ' + socket.connected);
+            
+            if (!playerName) {
+                log('No player name provided');
+                return;
+            }
+            
+            log('Emitting joinRoom event');
+            socket.emit('joinRoom', {
+                roomId: roomId,
+                playerName: playerName
+            });
+        }
+
+        // Set up button
+        document.addEventListener('DOMContentLoaded', () => {
+            const joinButton = document.getElementById('joinButton');
+            log('Setting up join button');
+            joinButton.addEventListener('click', (e) => {
+                log('Join button clicked!');
+                e.preventDefault();
+                joinGame();
+            });
+        });
+    </script>
+</body>
+</html>
