@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Connection Test</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .pending { background-color: #fff3cd; color: #856404; }
+        .log {
+            background-color: #f8f9fa;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 4px solid #007bff;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🐍 Multiplayer Snake - Backend Connection Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Backend API Test</h2>
+        <button onclick="testBackendAPI()">Test Backend API</button>
+        <div id="api-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Socket.IO Connection Test</h2>
+        <button onclick="testSocketConnection()">Test Socket Connection</button>
+        <div id="socket-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Join Room Test</h2>
+        <input type="text" id="test-name" placeholder="Enter your name" value="TestPlayer">
+        <input type="text" id="test-room" placeholder="Enter room ID" value="test123">
+        <button onclick="testJoinRoom()">Test Join Room</button>
+        <div id="join-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Connection Logs</h2>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://multiplayer-snake-backend.onrender.com';
+        let socket = null;
+
+        function addLog(message, type = 'log') {
+            const logs = document.getElementById('logs');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log';
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(logEntry);
+            console.log(message);
+        }
+
+        async function testBackendAPI() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.innerHTML = '<div class="status pending">Testing backend API...</div>';
+            
+            try {
+                // Test root endpoint
+                addLog(`Fetching ${BACKEND_URL}/`);
+                const rootResponse = await fetch(`${BACKEND_URL}/`);
+                const rootData = await rootResponse.json();
+                addLog(`Root endpoint response: ${JSON.stringify(rootData)}`);
+                
+                // Test health endpoint
+                addLog(`Fetching ${BACKEND_URL}/health`);
+                const healthResponse = await fetch(`${BACKEND_URL}/health`);
+                const healthData = await healthResponse.json();
+                addLog(`Health endpoint response: ${JSON.stringify(healthData)}`);
+                
+                resultDiv.innerHTML = `
+                    <div class="status success">✅ Backend API is working!</div>
+                    <div class="status success">Root: ${rootData.message}</div>
+                    <div class="status success">Health: ${healthData.status}</div>
+                    <div class="status success">Environment: ${healthData.environment || rootData.environment}</div>
+                `;
+            } catch (error) {
+                addLog(`API test error: ${error.message}`, 'error');
+                resultDiv.innerHTML = `
+                    <div class="status error">❌ Backend API test failed</div>
+                    <div class="status error">Error: ${error.message}</div>
+                    <div class="status error">Make sure the backend is deployed and running</div>
+                `;
+            }
+        }
+
+        function testSocketConnection() {
+            const resultDiv = document.getElementById('socket-result');
+            resultDiv.innerHTML = '<div class="status pending">Connecting to Socket.IO...</div>';
+            
+            if (socket) {
+                socket.disconnect();
+            }
+            
+            addLog(`Attempting Socket.IO connection to ${BACKEND_URL}`);
+            
+            socket = io(BACKEND_URL, {
+                transports: ['websocket', 'polling'],
+                withCredentials: true,
+                reconnection: true,
+                reconnectionAttempts: 3,
+                reconnectionDelay: 1000
+            });
+            
+            socket.on('connect', () => {
+                addLog(`Connected! Socket ID: ${socket.id}`);
+                resultDiv.innerHTML = `
+                    <div class="status success">✅ Socket.IO connected!</div>
+                    <div class="status success">Socket ID: ${socket.id}</div>
+                    <div class="status success">Transport: ${socket.io.engine.transport.name}</div>
+                `;
+            });
+            
+            socket.on('connect_error', (error) => {
+                addLog(`Connection error: ${error.message}`, 'error');
+                addLog(`Error type: ${error.type}`, 'error');
+                resultDiv.innerHTML = `
+                    <div class="status error">❌ Socket.IO connection failed</div>
+                    <div class="status error">Error: ${error.message}</div>
+                    <div class="status error">Type: ${error.type}</div>
+                `;
+            });
+            
+            socket.on('disconnect', (reason) => {
+                addLog(`Disconnected: ${reason}`);
+            });
+            
+            // Timeout after 10 seconds
+            setTimeout(() => {
+                if (!socket.connected) {
+                    resultDiv.innerHTML += '<div class="status error">Connection timeout after 10 seconds</div>';
+                }
+            }, 10000);
+        }
+
+        function testJoinRoom() {
+            const resultDiv = document.getElementById('join-result');
+            const name = document.getElementById('test-name').value;
+            const room = document.getElementById('test-room').value;
+            
+            if (!socket || !socket.connected) {
+                resultDiv.innerHTML = '<div class="status error">❌ Not connected to server. Test socket connection first.</div>';
+                return;
+            }
+            
+            if (!name || !room) {
+                resultDiv.innerHTML = '<div class="status error">❌ Please enter both name and room ID</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="status pending">Attempting to join room...</div>';
+            
+            addLog(`Emitting joinRoom event: {roomId: "${room}", playerName: "${name}"}`);
+            
+            // Set up one-time listeners for join responses
+            socket.once('playerJoined', (data) => {
+                addLog(`Player joined! Players in room: ${data.playerCount}`);
+                resultDiv.innerHTML = `
+                    <div class="status success">✅ Successfully joined room!</div>
+                    <div class="status success">Room ID: ${room}</div>
+                    <div class="status success">Players in room: ${data.playerCount}</div>
+                `;
+            });
+            
+            socket.once('roomFull', () => {
+                addLog('Room is full');
+                resultDiv.innerHTML = '<div class="status error">❌ Room is full</div>';
+            });
+            
+            socket.once('error', (message) => {
+                addLog(`Server error: ${message}`);
+                resultDiv.innerHTML = `<div class="status error">❌ Server error: ${message}</div>`;
+            });
+            
+            socket.once('gameState', (data) => {
+                addLog(`Received game state: ${JSON.stringify(data)}`);
+            });
+            
+            // Emit join room event
+            socket.emit('joinRoom', {
+                roomId: room,
+                playerName: name
+            });
+            
+            // Timeout after 5 seconds
+            setTimeout(() => {
+                const currentHTML = resultDiv.innerHTML;
+                if (currentHTML.includes('pending')) {
+                    resultDiv.innerHTML = '<div class="status error">❌ No response from server after 5 seconds</div>';
+                }
+            }, 5000);
+        }
+
+        // Auto-run API test on load
+        window.onload = () => {
+            addLog('Page loaded, ready for testing');
+            addLog(`Backend URL: ${BACKEND_URL}`);
+            addLog(`Current page URL: ${window.location.href}`);
+        };
+    </script>
+</body>
+</html>
