@@ -8,11 +8,38 @@ const server = http.createServer(app);
 
 // Configure CORS for separate frontend
 const allowedOrigins = process.env.NODE_ENV === 'production' 
-    ? [process.env.FRONTEND_URL || 'https://multiplayer-snake-frontend.onrender.com']
+    ? [
+        process.env.FRONTEND_URL || 'https://multiplayer-snake-frontend.onrender.com',
+        // Add common Render URL patterns
+        'https://multiplayer-snake-frontend.onrender.com',
+        /https:\/\/multiplayer-snake-frontend-.*\.onrender\.com/
+      ]
     : ['http://localhost:3000', 'http://localhost:8080', 'http://127.0.0.1:3000', 'http://127.0.0.1:8080'];
 
+console.log('CORS allowed origins:', allowedOrigins);
+console.log('Environment:', process.env.NODE_ENV);
+console.log('Frontend URL from env:', process.env.FRONTEND_URL);
+
 app.use(cors({
-    origin: allowedOrigins,
+    origin: function(origin, callback) {
+        // Allow requests with no origin (like mobile apps or Postman)
+        if (!origin) return callback(null, true);
+        
+        // Check if origin is in allowed list
+        const isAllowed = allowedOrigins.some(allowed => {
+            if (allowed instanceof RegExp) {
+                return allowed.test(origin);
+            }
+            return allowed === origin;
+        });
+        
+        if (isAllowed) {
+            callback(null, true);
+        } else {
+            console.log('Blocked origin:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: ["GET", "POST"],
     credentials: true
 }));
@@ -20,7 +47,25 @@ app.use(cors({
 // Configure socket.io for separate frontend/backend
 const io = socketIo(server, {
     cors: {
-        origin: allowedOrigins,
+        origin: function(origin, callback) {
+            // Allow requests with no origin
+            if (!origin) return callback(null, true);
+            
+            // Check if origin is in allowed list
+            const isAllowed = allowedOrigins.some(allowed => {
+                if (allowed instanceof RegExp) {
+                    return allowed.test(origin);
+                }
+                return allowed === origin;
+            });
+            
+            if (isAllowed) {
+                callback(null, true);
+            } else {
+                console.log('Socket.IO blocked origin:', origin);
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
         methods: ["GET", "POST"],
         credentials: true
     },
@@ -29,6 +74,19 @@ const io = socketIo(server, {
 
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Root route - provide API information
+app.get('/', (req, res) => {
+    res.status(200).json({
+        message: 'Multiplayer Snake Game Backend API',
+        status: 'running',
+        environment: NODE_ENV,
+        endpoints: {
+            health: '/health',
+            websocket: 'Connect via Socket.IO'
+        }
+    });
+});
 
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
@@ -194,12 +252,22 @@ class GameRoom {
 // Socket.io connection handling
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
+    console.log('Connection origin:', socket.handshake.headers.origin);
+    console.log('Transport:', socket.conn.transport.name);
 
     socket.on('joinRoom', (data) => {
+        console.log('Join room request:', data);
         const { roomId, playerName } = data;
+        
+        if (!roomId || !playerName) {
+            console.error('Missing roomId or playerName:', { roomId, playerName });
+            socket.emit('error', 'Missing room ID or player name');
+            return;
+        }
         
         if (!gameRooms.has(roomId)) {
             gameRooms.set(roomId, new GameRoom(roomId));
+            console.log('Created new room:', roomId);
         }
 
         const room = gameRooms.get(roomId);
@@ -208,6 +276,7 @@ io.on('connection', (socket) => {
         if (joined) {
             socket.join(roomId);
             socket.roomId = roomId;
+            console.log(`Player ${playerName} joined room ${roomId}`);
             
             io.to(roomId).emit('playerJoined', {
                 players: Array.from(room.players.values()),
@@ -216,12 +285,14 @@ io.on('connection', (socket) => {
 
             // Start game if 2 players
             if (room.players.size === 2) {
+                console.log('Starting game in room:', roomId);
                 room.startGame();
             }
 
             // Send initial game state
             socket.emit('gameState', room.getGameData());
         } else {
+            console.log('Room full:', roomId);
             socket.emit('roomFull');
         }
     });
@@ -269,6 +340,8 @@ server.listen(PORT, () => {
     console.log(`🐍 Snake Game Server running on port ${PORT}`);
     console.log(`📍 Environment: ${NODE_ENV}`);
     console.log(`🎮 Game rooms: ${gameRooms.size}`);
+    console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'Not set - using default'}`);
+    console.log(`✅ Server is ready to accept connections`);
     if (NODE_ENV === 'production') {
         console.log('🚀 Running in production mode');
     }

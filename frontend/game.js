@@ -50,9 +50,15 @@ function init() {
         ? 'http://localhost:3000'  // Development backend
         : 'https://multiplayer-snake-backend.onrender.com';  // Production backend
     
+    console.log('Connecting to backend:', backendUrl);
+    console.log('Current hostname:', window.location.hostname);
+    
     socket = io(backendUrl, {
         transports: ['websocket', 'polling'],
-        withCredentials: true
+        withCredentials: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
     });
     
     // Set up event listeners
@@ -97,11 +103,42 @@ function setupEventListeners() {
 function setupSocketListeners() {
     socket.on('connect', () => {
         console.log('Connected to server');
+        console.log('Socket ID:', socket.id);
+        elements.errorMessage.style.display = 'none';
     });
     
-    socket.on('disconnect', () => {
-        console.log('Disconnected from server');
-        showError('Connection lost. Please refresh the page.');
+    socket.on('connect_error', (error) => {
+        console.error('Connection error:', error.message);
+        console.error('Error type:', error.type);
+        showError(`Failed to connect to server: ${error.message}. Please check if the backend is running.`);
+    });
+    
+    socket.on('disconnect', (reason) => {
+        console.log('Disconnected from server:', reason);
+        if (reason === 'io server disconnect') {
+            showError('Server disconnected you. Please refresh the page.');
+        } else if (reason === 'transport close') {
+            showError('Connection lost. Attempting to reconnect...');
+        } else {
+            showError('Connection lost. Please refresh the page.');
+        }
+    });
+    
+    socket.on('reconnect', (attemptNumber) => {
+        console.log('Reconnected after', attemptNumber, 'attempts');
+        showError('Reconnected to server!');
+        setTimeout(() => {
+            elements.errorMessage.style.display = 'none';
+        }, 3000);
+    });
+    
+    socket.on('reconnect_attempt', (attemptNumber) => {
+        console.log('Reconnection attempt #', attemptNumber);
+    });
+    
+    socket.on('reconnect_failed', () => {
+        console.error('Failed to reconnect');
+        showError('Failed to reconnect to server. Please refresh the page.');
     });
     
     socket.on('playerJoined', (data) => {
@@ -146,14 +183,24 @@ function joinGame() {
     const playerName = elements.playerName.value.trim();
     const roomId = elements.roomId.value.trim() || generateRoomId();
     
+    console.log('Attempting to join game:', { playerName, roomId });
+    
     if (!playerName) {
         showError('Please enter your name');
+        return;
+    }
+    
+    // Check if socket is connected
+    if (!socket || !socket.connected) {
+        console.error('Socket is not connected');
+        showError('Not connected to server. Please wait a moment and try again.');
         return;
     }
     
     currentRoom = roomId;
     currentPlayer = playerName;
     
+    console.log('Emitting joinRoom event');
     socket.emit('joinRoom', {
         roomId: roomId,
         playerName: playerName
