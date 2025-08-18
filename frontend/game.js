@@ -8,6 +8,9 @@ let currentScreen = 'welcome';
 let gameData = null;
 let currentPlayer = null;
 let currentRoom = null;
+let isSinglePlayer = false;
+let gameInterval = null;
+let aiSnake = null;
 
 // DOM elements
 const screens = {
@@ -21,6 +24,7 @@ const elements = {
     playerName: document.getElementById('playerName'),
     roomId: document.getElementById('roomId'),
     joinButton: document.getElementById('joinButton'),
+    singlePlayerButton: document.getElementById('singlePlayerButton'),
     leaveRoomButton: document.getElementById('leaveRoomButton'),
     currentRoomId: document.getElementById('currentRoomId'),
     gameRoomId: document.getElementById('gameRoomId'),
@@ -73,6 +77,9 @@ function init() {
 function setupEventListeners() {
     // Join game button
     elements.joinButton.addEventListener('click', joinGame);
+    
+    // Single player button
+    elements.singlePlayerButton.addEventListener('click', startSinglePlayer);
     
     // Leave room button
     elements.leaveRoomButton.addEventListener('click', leaveRoom);
@@ -214,8 +221,17 @@ function joinGame() {
 
 // Leave room function
 function leaveRoom() {
-    socket.disconnect();
-    socket.connect();
+    if (isSinglePlayer) {
+        // Stop single player game
+        if (gameInterval) {
+            clearInterval(gameInterval);
+        }
+        isSinglePlayer = false;
+    } else {
+        // Disconnect from multiplayer
+        socket.disconnect();
+        socket.connect();
+    }
     
     currentRoom = null;
     currentPlayer = null;
@@ -226,7 +242,12 @@ function leaveRoom() {
 
 // Play again function
 function playAgain() {
-    if (currentRoom && currentPlayer) {
+    if (isSinglePlayer) {
+        // Reset single player game
+        initSinglePlayerGame();
+        showScreen('game');
+        startGameLoop();
+    } else if (currentRoom && currentPlayer) {
         socket.emit('joinRoom', {
             roomId: currentRoom,
             playerName: currentPlayer
@@ -242,6 +263,11 @@ function newRoom() {
     currentRoom = null;
     currentPlayer = null;
     gameData = null;
+    isSinglePlayer = false;
+    
+    if (gameInterval) {
+        clearInterval(gameInterval);
+    }
     
     showScreen('welcome');
 }
@@ -249,6 +275,288 @@ function newRoom() {
 // Generate random room ID
 function generateRoomId() {
     return Math.random().toString(36).substr(2, 6).toUpperCase();
+}
+
+// Start single player game
+function startSinglePlayer() {
+    const playerName = elements.playerName.value.trim();
+    
+    if (!playerName) {
+        showError('Please enter your name');
+        return;
+    }
+    
+    isSinglePlayer = true;
+    currentPlayer = playerName;
+    
+    // Initialize single player game
+    initSinglePlayerGame();
+    
+    // Show game screen directly
+    showScreen('game');
+    
+    // Start the game loop
+    startGameLoop();
+}
+
+// Initialize single player game data
+function initSinglePlayerGame() {
+    gameData = {
+        players: [
+            {
+                id: 'player1',
+                name: currentPlayer,
+                snake: [{x: 5, y: 10}],
+                direction: {x: 1, y: 0},
+                score: 0,
+                alive: true,
+                color: '#ff6b6b'
+            },
+            {
+                id: 'ai',
+                name: 'AI Snake',
+                snake: [{x: 25, y: 10}],
+                direction: {x: -1, y: 0},
+                score: 0,
+                alive: true,
+                color: '#4ecdc4'
+            }
+        ],
+        food: generateFood(),
+        gameState: 'playing'
+    };
+    
+    // Update display
+    elements.player1Name.textContent = gameData.players[0].name;
+    elements.player2Name.textContent = gameData.players[1].name;
+    elements.player1Points.textContent = '0';
+    elements.player2Points.textContent = '0';
+    elements.gameRoomId.textContent = 'Single Player';
+}
+
+// Generate food position
+function generateFood() {
+    let food;
+    do {
+        food = {
+            x: Math.floor(Math.random() * 30),
+            y: Math.floor(Math.random() * 30)
+        };
+    } while (isPositionOccupied(food));
+    return food;
+}
+
+// Check if position is occupied by any snake
+function isPositionOccupied(pos) {
+    if (!gameData || !gameData.players) return false;
+    
+    for (let player of gameData.players) {
+        for (let segment of player.snake) {
+            if (segment.x === pos.x && segment.y === pos.y) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Start game loop for single player
+function startGameLoop() {
+    if (gameInterval) {
+        clearInterval(gameInterval);
+    }
+    
+    gameInterval = setInterval(() => {
+        if (gameData && gameData.gameState === 'playing') {
+            updateSinglePlayerGame();
+            renderGame();
+        }
+    }, 100); // 10 FPS
+}
+
+// Update single player game state
+function updateSinglePlayerGame() {
+    // Update player snake
+    updateSnake(gameData.players[0]);
+    
+    // Update AI snake
+    updateAISnake(gameData.players[1]);
+    
+    // Check collisions
+    checkCollisions();
+    
+    // Update scores display
+    updateGameDisplay();
+    
+    // Check game over
+    checkGameOver();
+}
+
+// Update snake position
+function updateSnake(player) {
+    if (!player.alive) return;
+    
+    const head = {...player.snake[0]};
+    head.x += player.direction.x;
+    head.y += player.direction.y;
+    
+    // Check wall collision
+    if (head.x < 0 || head.x >= 30 || head.y < 0 || head.y >= 30) {
+        player.alive = false;
+        return;
+    }
+    
+    // Check self collision
+    for (let segment of player.snake) {
+        if (head.x === segment.x && head.y === segment.y) {
+            player.alive = false;
+            return;
+        }
+    }
+    
+    // Add new head
+    player.snake.unshift(head);
+    
+    // Check food collision
+    if (head.x === gameData.food.x && head.y === gameData.food.y) {
+        player.score += 10;
+        gameData.food = generateFood();
+    } else {
+        // Remove tail if no food eaten
+        player.snake.pop();
+    }
+}
+
+// Update AI snake with simple AI
+function updateAISnake(aiPlayer) {
+    if (!aiPlayer.alive) return;
+    
+    const head = aiPlayer.snake[0];
+    const food = gameData.food;
+    
+    // Simple AI: move towards food
+    let newDirection = {...aiPlayer.direction};
+    
+    // Horizontal movement
+    if (food.x < head.x && aiPlayer.direction.x !== 1) {
+        newDirection = {x: -1, y: 0};
+    } else if (food.x > head.x && aiPlayer.direction.x !== -1) {
+        newDirection = {x: 1, y: 0};
+    } 
+    // Vertical movement
+    else if (food.y < head.y && aiPlayer.direction.y !== 1) {
+        newDirection = {x: 0, y: -1};
+    } else if (food.y > head.y && aiPlayer.direction.y !== -1) {
+        newDirection = {x: 0, y: 1};
+    }
+    
+    // Check if new direction is safe
+    const testHead = {
+        x: head.x + newDirection.x,
+        y: head.y + newDirection.y
+    };
+    
+    if (!isMoveSafe(testHead, aiPlayer)) {
+        // Try alternative moves
+        const alternatives = [
+            {x: 0, y: -1}, {x: 1, y: 0}, {x: 0, y: 1}, {x: -1, y: 0}
+        ];
+        
+        for (let alt of alternatives) {
+            if ((alt.x !== -aiPlayer.direction.x || alt.y !== -aiPlayer.direction.y)) {
+                const altHead = {
+                    x: head.x + alt.x,
+                    y: head.y + alt.y
+                };
+                if (isMoveSafe(altHead, aiPlayer)) {
+                    newDirection = alt;
+                    break;
+                }
+            }
+        }
+    }
+    
+    aiPlayer.direction = newDirection;
+    updateSnake(aiPlayer);
+}
+
+// Check if move is safe for AI
+function isMoveSafe(pos, player) {
+    // Check walls
+    if (pos.x < 0 || pos.x >= 30 || pos.y < 0 || pos.y >= 30) {
+        return false;
+    }
+    
+    // Check collision with any snake (including self)
+    for (let p of gameData.players) {
+        for (let segment of p.snake) {
+            if (pos.x === segment.x && pos.y === segment.y) {
+                return false;
+            }
+        }
+    }
+    
+    return true;
+}
+
+// Check collisions between snakes
+function checkCollisions() {
+    const player1 = gameData.players[0];
+    const player2 = gameData.players[1];
+    
+    if (!player1.alive || !player2.alive) return;
+    
+    // Check if players collide with each other
+    const p1Head = player1.snake[0];
+    const p2Head = player2.snake[0];
+    
+    // Check player1 head collision with player2 body
+    for (let segment of player2.snake) {
+        if (p1Head.x === segment.x && p1Head.y === segment.y) {
+            player1.alive = false;
+        }
+    }
+    
+    // Check player2 head collision with player1 body
+    for (let segment of player1.snake) {
+        if (p2Head.x === segment.x && p2Head.y === segment.y) {
+            player2.alive = false;
+        }
+    }
+}
+
+// Check if game is over
+function checkGameOver() {
+    const alivePlayers = gameData.players.filter(p => p.alive);
+    
+    if (alivePlayers.length <= 1) {
+        gameData.gameState = 'gameOver';
+        clearInterval(gameInterval);
+        
+        // Show game over screen
+        showGameOverScreen();
+    }
+}
+
+// Show game over screen for single player
+function showGameOverScreen() {
+    const winner = gameData.players.find(p => p.alive);
+    const player = gameData.players[0];
+    
+    if (winner && winner.id === 'player1') {
+        elements.gameOverTitle.textContent = '🎉 You Win!';
+    } else if (player.score > gameData.players[1].score) {
+        elements.gameOverTitle.textContent = '😊 Good Game!';
+    } else {
+        elements.gameOverTitle.textContent = '😢 Game Over!';
+    }
+    
+    elements.gameOverStats.innerHTML = `
+        <p><strong>${player.name}:</strong> ${player.score} points</p>
+        <p><strong>AI Snake:</strong> ${gameData.players[1].score} points</p>
+    `;
+    
+    showScreen('gameOver');
 }
 
 // Show screen function
@@ -409,7 +717,19 @@ function handleKeyPress(event) {
     
     if (direction) {
         event.preventDefault();
-        socket.emit('changeDirection', direction);
+        
+        if (isSinglePlayer) {
+            // In single player mode, update direction directly
+            const player = gameData.players[0];
+            // Prevent 180 degree turns
+            if ((direction.x !== -player.direction.x || direction.y !== -player.direction.y) &&
+                (direction.x !== player.direction.x || direction.y !== player.direction.y)) {
+                player.direction = direction;
+            }
+        } else {
+            // In multiplayer mode, emit to server
+            socket.emit('changeDirection', direction);
+        }
     }
 }
 
@@ -566,7 +886,18 @@ function setupTouchControls() {
             }
             
             if (direction) {
-                socket.emit('changeDirection', direction);
+                if (isSinglePlayer) {
+                    // In single player mode, update direction directly
+                    const player = gameData.players[0];
+                    // Prevent 180 degree turns
+                    if ((direction.x !== -player.direction.x || direction.y !== -player.direction.y) &&
+                        (direction.x !== player.direction.x || direction.y !== player.direction.y)) {
+                        player.direction = direction;
+                    }
+                } else {
+                    // In multiplayer mode, emit to server
+                    socket.emit('changeDirection', direction);
+                }
                 
                 // Enhanced haptic feedback
                 addHapticFeedback('light');
@@ -662,7 +993,18 @@ function createMobileControls() {
             }
             
             if (directionVector) {
-                socket.emit('changeDirection', directionVector);
+                if (isSinglePlayer) {
+                    // In single player mode, update direction directly
+                    const player = gameData.players[0];
+                    // Prevent 180 degree turns
+                    if ((directionVector.x !== -player.direction.x || directionVector.y !== -player.direction.y) &&
+                        (directionVector.x !== player.direction.x || directionVector.y !== player.direction.y)) {
+                        player.direction = directionVector;
+                    }
+                } else {
+                    // In multiplayer mode, emit to server
+                    socket.emit('changeDirection', directionVector);
+                }
                 
                 // Visual feedback
                 button.classList.add('pressed');

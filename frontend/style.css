@@ -124,6 +124,19 @@ body {
     box-shadow: 0 10px 25px rgba(78, 205, 196, 0.4);
 }
 
+/* Game Mode Buttons */
+.game-mode-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.game-mode-buttons .btn {
+    flex: 1;
+    max-width: 200px;
+}
+
 /* Game Info */
 .game-info {
     margin-top: 40px;
