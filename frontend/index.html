@@ -18,11 +18,14 @@
                     <input type="text" id="playerName" placeholder="Enter your name" maxlength="15" required>
                 </div>
                 
-                <div class="input-group">
+                <div class="input-group" id="roomIdGroup">
                     <input type="text" id="roomId" placeholder="Room ID (optional - leave empty for random)">
                 </div>
                 
-                <button id="joinButton" class="btn btn-primary">Join Game</button>
+                <div class="game-mode-buttons">
+                    <button id="singlePlayerButton" class="btn btn-secondary">🤖 Single Player</button>
+                    <button id="joinButton" class="btn btn-primary">👥 Multiplayer</button>
+                </div>
                 
                 <div class="game-info">
                     <h3>🎮 How to Play:</h3>
