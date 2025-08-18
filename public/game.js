@@ -40,11 +40,26 @@ const elements = {
     closeError: document.getElementById('closeError')
 };
 
-// Canvas context
-const ctx = elements.gameCanvas.getContext('2d');
+// Canvas context - wrap in try-catch to prevent errors
+let ctx;
+try {
+    ctx = elements.gameCanvas ? elements.gameCanvas.getContext('2d') : null;
+    console.log('Canvas context initialized:', !!ctx);
+} catch (error) {
+    console.error('Error initializing canvas context:', error);
+    ctx = null;
+}
 
 // Initialize the game
 function init() {
+    console.log('Initializing game...');
+    
+    // Check if critical elements exist
+    if (!elements.joinButton || !elements.playerName) {
+        console.error('Critical DOM elements not found');
+        return;
+    }
+    
     // Initialize socket connection
     socket = io();
     
@@ -59,7 +74,10 @@ function init() {
 // Set up DOM event listeners
 function setupEventListeners() {
     // Join game button
-    elements.joinButton.addEventListener('click', joinGame);
+    elements.joinButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        joinGame();
+    });
     
     // Leave room button
     elements.leaveRoomButton.addEventListener('click', leaveRoom);
@@ -90,6 +108,11 @@ function setupEventListeners() {
 function setupSocketListeners() {
     socket.on('connect', () => {
         console.log('Connected to server');
+    });
+    
+    socket.on('connect_error', (error) => {
+        console.error('Connection error:', error);
+        showError('Failed to connect to server. Please try again.');
     });
     
     socket.on('disconnect', () => {
@@ -141,6 +164,12 @@ function joinGame() {
     
     if (!playerName) {
         showError('Please enter your name');
+        return;
+    }
+    
+    // Check if socket is available
+    if (!socket) {
+        showError('Connection not established. Please refresh the page.');
         return;
     }
     
