@@ -54,38 +54,27 @@ try {
 function init() {
     console.log('Initializing game...');
     
-    // Check if all required elements exist
-    console.log('Checking DOM elements...');
-    for (const [key, element] of Object.entries(elements)) {
-        if (!element) {
-            console.error(`Element not found: ${key}`);
-        } else {
-            console.log(`Element found: ${key}`);
-        }
+    // Check if critical elements exist
+    if (!elements.joinButton || !elements.playerName) {
+        console.error('Critical DOM elements not found');
+        return;
     }
     
     // Initialize socket connection
-    console.log('Initializing socket connection...');
     socket = io();
     
     // Set up event listeners
-    console.log('Setting up event listeners...');
     setupEventListeners();
     setupSocketListeners();
     
     // Show welcome screen
-    console.log('Showing welcome screen...');
     showScreen('welcome');
 }
 
 // Set up DOM event listeners
 function setupEventListeners() {
     // Join game button
-    console.log('Setting up join button event listener');
-    console.log('Join button element:', elements.joinButton);
     elements.joinButton.addEventListener('click', (e) => {
-        console.log('Join button clicked!');
-        alert('Join button was clicked!'); // Temporary visual feedback
         e.preventDefault();
         joinGame();
     });
@@ -118,7 +107,7 @@ function setupEventListeners() {
 // Set up Socket.io event listeners
 function setupSocketListeners() {
     socket.on('connect', () => {
-        console.log('Connected to server with socket ID:', socket.id);
+        console.log('Connected to server');
     });
     
     socket.on('connect_error', (error) => {
@@ -170,25 +159,23 @@ function setupSocketListeners() {
 
 // Join game function
 function joinGame() {
-    console.log('joinGame function called');
-    alert('joinGame function was called!'); // Temporary visual feedback
-    
     const playerName = elements.playerName.value.trim();
     const roomId = elements.roomId.value.trim() || generateRoomId();
-    
-    console.log('Player name:', playerName);
-    console.log('Room ID:', roomId);
-    console.log('Socket connected:', socket.connected);
     
     if (!playerName) {
         showError('Please enter your name');
         return;
     }
     
+    // Check if socket is available
+    if (!socket) {
+        showError('Connection not established. Please refresh the page.');
+        return;
+    }
+    
     currentRoom = roomId;
     currentPlayer = playerName;
     
-    console.log('Emitting joinRoom event');
     socket.emit('joinRoom', {
         roomId: roomId,
         playerName: playerName
@@ -197,7 +184,6 @@ function joinGame() {
     elements.currentRoomId.textContent = roomId;
     elements.gameRoomId.textContent = roomId;
     
-    console.log('Switching to waiting screen');
     showScreen('waiting');
 }
 
